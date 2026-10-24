@@ -114,7 +114,8 @@ async function fetchTeamMembers(): Promise<Array<{ id: number; username: string 
     const team = data.teams?.find((t: any) => t.id === TEAM_ID);
     if (!team) return [];
 
-    return team.members.map((m: any) => ({
+    // Pomijamy zaproszenia nieprzyjęte (brak username) - inaczej sync odkrywa je w statystykach
+    return team.members.filter((m: any) => m.user.username).map((m: any) => ({
       id: m.user.id,
       username: m.user.username,
     }));

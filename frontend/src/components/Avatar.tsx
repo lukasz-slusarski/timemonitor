@@ -1,4 +1,4 @@
-export function Avatar({ name, color, avatar, size = 'md' }: { name: string; color?: string; avatar?: string; size?: 'sm' | 'md' | 'lg' }) {
+export function Avatar({ name, color, avatar, size = 'md' }: { name: string | null; color?: string; avatar?: string; size?: 'sm' | 'md' | 'lg' }) {
   const sizeClasses = {
     sm: 'w-8 h-8 text-xs',
     md: 'w-10 h-10 text-sm',
@@ -9,13 +9,14 @@ export function Avatar({ name, color, avatar, size = 'md' }: { name: string; col
     return (
       <img
         src={avatar}
-        alt={name}
+        alt={name || ''}
         className={`${sizeClasses[size]} rounded-full object-cover`}
       />
     );
   }
 
-  const initials = name
+  // Zaproszeni do ClickUp, którzy nie przyjęli zaproszenia, nie mają nazwy
+  const initials = (name || '?')
     .split(' ')
     .map((n) => n[0])
     .join('')
