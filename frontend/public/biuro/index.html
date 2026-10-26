@@ -113,7 +113,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 // Strona osadzona w zakładce „Biuro” aplikacji (iframe z tej samej domeny): token logowania i motyw bierze z aplikacji.
-const API = new URLSearchParams(location.search).get('api') || '';
+// adres API przyjmujemy tylko od aplikacji z tej samej domeny (iframe); otwarta osobno strona pyta własną domenę,
+// żeby link z obcym ?api= nie wyciągnął tokenu
+const sameOriginParent = (()=>{ try { return parent !== window && !!parent.document; } catch { return false; } })();
+const API = sameOriginParent ? (new URLSearchParams(location.search).get('api') || '') : '';
 const MIN = 60000;
 
 // ================= dane =================
@@ -397,7 +400,7 @@ function renderTags(){
   for (const id in bots){
     const b = STATE.sessions.find(x=>x.owner===id && !x.ended_at), t = tags[id] || makeTag(id);
     t.className = 'tag' + (SEL===id?' sel':'') + (b?'':' away');
-    t.innerHTML = `<i class="dot ${b?'bot':''}"></i><b>${esc(PEOPLE[id].name)}</b>` + (b?.counter!=null ? `<span class="t">${b.counter} ${esc(b.counter_label)}</span>` : '');
+    t.innerHTML = `<i class="dot ${b?'bot':''}"></i><b>${esc(PEOPLE[id].name)}</b>` + (b?.counter!=null ? `<span class="t">${esc(b.counter)} ${esc(b.counter_label)}</span>` : '');
   }
 }
 
@@ -421,7 +424,7 @@ function renderPanel(){
     const ss = STATE.sessions.filter(x=>x.owner===SEL), b = ss.find(x=>!x.ended_at);
     const total = ss.reduce((a,s)=>a+s.active_ms,0);
     panel.innerHTML = `<div class="ph"><div><h2>${esc(PEOPLE[SEL].name)}</h2><div class="st"><i class="dot ${b?'bot':''}"></i>${b ? esc(b.activity||'działa') : 'nie działa'} ${offline}</div></div><button class="close" aria-label="Zamknij">✕</button></div>
-      <div class="stats"><div class="stat"><div class="v">${b?.counter ?? 0}</div><div class="l">${esc(b?.counter_label || 'dziś')}</div></div><div class="stat"><div class="v">${fmt(total)}</div><div class="l">działa dziś</div></div></div>
+      <div class="stats"><div class="stat"><div class="v">${esc(b?.counter ?? 0)}</div><div class="l">${esc(b?.counter_label || 'dziś')}</div></div><div class="stat"><div class="v">${fmt(total)}</div><div class="l">działa dziś</div></div></div>
       <div class="pb"><h3>Teraz</h3>${b ? itemHTML(b) : '<div class="empty">Nic nie robi.</div>'}</div>`;
   } else {
     const s = personState(SEL);
