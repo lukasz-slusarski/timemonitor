@@ -1,8 +1,10 @@
 {
   "name": "biuro",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Wysyła status sesji Claude Code do zakładki Biuro w monitor.important.is. Bez treści promptów i wyników narzędzi.",
-  "author": { "name": "important.is" },
+  "author": {
+    "name": "important.is"
+  },
   "userConfig": {
     "token": {
       "type": "string",
@@ -20,8 +22,14 @@
     "roots": {
       "type": "string",
       "title": "Foldery pracy",
-      "description": "Foldery, z których sesje trafiają do biura, po przecinku. Inne foldery zostają prywatne.",
+      "description": "Foldery, z których sesje trafiają do biura, po przecinku. ~/Projects/* znaczy: każdy podfolder to osobny klient. Inne foldery zostają prywatne.",
       "default": "~/important,~/Projects/important"
+    },
+    "skip": {
+      "type": "string",
+      "title": "Foldery prywatne",
+      "description": "Foldery pomijane mimo roots, po przecinku (np. ~/Projects/prywatne)",
+      "default": ""
     }
   }
 }

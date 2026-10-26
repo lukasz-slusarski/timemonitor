@@ -17,4 +17,4 @@ biuro-doing --session <session_id> 'Krótki tytuł' 'Jedno zdanie, co robisz' [-
 - Zmieniaj tytuł, gdy zmienia się zadanie. `--task` dodaj, gdy znasz zadanie ClickUp; sesje bez zadania trafiają do listy „Do zalogowania w ClickUp”.
 - `--done`, gdy praca w tej sesji jest skończona.
 
-Sesje z folderów spoza opcji `roots` pluginu nie są wysyłane.
+Sesje z folderów spoza opcji `roots` pluginu (albo z folderów w `skip`) nie są wysyłane. `~/Projects/*` w `roots` oznacza, że każdy podfolder to osobny klient.

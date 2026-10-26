@@ -10,15 +10,17 @@ import json, os, subprocess, sys, time
 HOME = os.path.expanduser('~')
 CACHE = os.path.join(HOME, '.cache', 'biuro')
 
-cfg = {'url': 'https://monitor.important.is', 'token': '', 'roots': '~/important,~/Projects/important'}
+cfg = {'url': 'https://monitor.important.is', 'token': '', 'roots': '~/important,~/Projects/important', 'skip': ''}
 try:
     cfg.update(json.load(open(os.path.join(HOME, '.config', 'biuro', 'config.json'))))
 except Exception:
     pass
-for key in ('url', 'token', 'roots'):
+for key in ('url', 'token', 'roots', 'skip'):
     if os.environ.get('CLAUDE_PLUGIN_OPTION_' + key.upper()):
         cfg[key] = os.environ['CLAUDE_PLUGIN_OPTION_' + key.upper()]
-ROOTS = cfg['roots'] if isinstance(cfg['roots'], list) else [r.strip() for r in cfg['roots'].split(',') if r.strip()]
+paths = lambda v: v if isinstance(v, list) else [r.strip() for r in v.split(',') if r.strip()]
+ROOTS = paths(cfg['roots'])
+SKIP = [os.path.expanduser(r).rstrip('/') for r in paths(cfg['skip'])]
 
 VERBS = [
     (('Edit', 'Write', 'MultiEdit', 'NotebookEdit'), 'pisze'),
@@ -41,8 +43,20 @@ def verb(tool):
 
 def project_of(cwd):
     # w folderach important projekt to podfolder (clientportal); w folderach klientów z prefiksem klienta (wdf / arek)
+    # root z /* na końcu (~/Projects/*): każdy podfolder to osobny klient; foldery ze `skip` zostają prywatne
+    if any(cwd == s or cwd.startswith(s + '/') for s in SKIP):
+        return None
     for root in ROOTS:
         root = os.path.expanduser(root).rstrip('/')
+        if root.endswith('/*'):
+            base = root[:-2]
+            if not cwd.startswith(base + '/'):
+                continue
+            client, _, rest = cwd[len(base) + 1:].partition('/')
+            sub = rest.split('/')[0]
+            if client == 'important':
+                return sub or client
+            return f'{client} / {sub}' if sub else client
         name = os.path.basename(root)
         if cwd == root:
             return name
