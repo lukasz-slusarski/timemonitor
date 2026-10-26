@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { PresenceTokens } from './PresenceTokens';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -458,6 +459,8 @@ export function AdminPanel() {
           Oblicza duration na podstawie start_time i end_time dla wpisow ktore maja duration=0
         </p>
       </div>
+
+      <PresenceTokens token={token} users={users} />
 
       {/* ── Settings Section ────────────────────────────────────────── */}
       <div className="bg-card rounded-2xl border border-border p-4 mb-6">

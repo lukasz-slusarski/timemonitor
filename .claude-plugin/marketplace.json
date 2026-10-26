@@ -1,0 +1,12 @@
+{
+  "name": "important",
+  "description": "Pluginy Claude Code zespołu important.is",
+  "owner": { "name": "important.is" },
+  "plugins": [
+    {
+      "name": "biuro",
+      "source": "./plugins/biuro",
+      "description": "Pokazuje w zakładce Biuro na monitor.important.is, nad czym pracuje Claude: tytuł, status, czas, agenci."
+    }
+  ]
+}

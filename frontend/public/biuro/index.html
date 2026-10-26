@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Biuro</title>
+<style>
+/* kolory jak w aplikacji (src/index.css): ciemny domyślnie, jasny z klasą .light w aplikacji */
+:root{
+  --bg:#0f0f0f; --ink:#f5f5f5; --mute:#a6a6a6; --line:#2e2e2e;
+  --card:rgba(26,26,26,.88); --card-solid:#1a1a1a; --chip:#2e2e2e;
+  --ok:#22a559; --wait:#ff3434; --agent:#f59e0b; --off:#5c5c5c;
+  --claude:#d97757; --clickup:#a78bfa; --bot:#3b82f6;
+  --cu-bg:#2c2347; --cu-fg:#c4b5fd; --wt-bg:#4a1d1d; --wt-fg:#ff9c9c; --ag-bg:#43301a; --ag-fg:#fbbf6b;
+}
+:root.light{
+  --bg:#ffffff; --ink:#1a1a1a; --mute:#666; --line:#d9d9d9;
+  --card:rgba(255,255,255,.9); --card-solid:#fff; --chip:#f0f0f0; --off:#bdbdbd;
+  --cu-bg:#efe9ff; --cu-fg:#6a4fe0; --wt-bg:#ffe5e5; --wt-fg:#d41f1f; --ag-bg:#fdf0dc; --ag-fg:#a5620c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);overflow:hidden}
+button{font:inherit;color:inherit}
+.mono,.tag .t,.item .tm{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+#stage{position:absolute;inset:0}
+#stage canvas{display:block;width:100%;height:100%;outline:none}
+
+.sum{position:absolute;top:14px;left:14px;display:flex;gap:6px;flex-wrap:wrap;z-index:5}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:var(--card);border:1px solid var(--line);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font-size:13px;font-weight:500;white-space:nowrap}
+.chip .mono{font-size:12px}
+.note{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--chip);color:var(--mute);font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--off);flex:none}
+.dot.working{background:var(--ok)}
+.dot.agents{background:var(--agent)}
+.dot.waiting{background:var(--wait);animation:pulse 1.4s infinite}
+.dot.bot{background:var(--bot)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,52,52,.5)}100%{box-shadow:0 0 0 8px rgba(255,52,52,0)}}
+
+/* znaczki źródła pracy */
+.ico{width:16px;height:16px;flex:none;display:inline-block;vertical-align:middle}
+.ico.claude{color:var(--claude)} .ico.clickup{color:var(--clickup)} .ico.bot{color:var(--bot)}
+
+/* etykiety nad głowami */
+#tags{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden}
+.tag{position:absolute;transform:translate(-50%,-100%);pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:7px;padding:5px 10px 5px 8px;border-radius:999px;background:var(--card-solid);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);font-size:13px;white-space:nowrap;transition:box-shadow .2s, opacity .3s}
+.tag:hover,.tag.sel{box-shadow:0 0 0 2px var(--ink),0 6px 18px rgba(0,0,0,.2)}
+.tag b{font-weight:600}
+.tag .t{font-size:11.5px;color:var(--mute)}
+.tag .ag{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;padding:1px 6px 1px 4px;border-radius:999px;background:var(--ag-bg);color:var(--ag-fg)}
+.tag .ag .ico{width:12px;height:12px;color:var(--claude)}
+.tag .wt{font-size:11.5px;color:var(--wait);font-weight:600}
+.tag.away{opacity:.6}
+
+/* panel osoby */
+#panel{position:absolute;top:12px;right:12px;bottom:12px;width:360px;max-width:calc(100% - 24px);background:var(--card);border:1px solid var(--line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.25);z-index:6;display:flex;flex-direction:column;transform:translateX(calc(100% + 40px));transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+#panel.open{transform:none}
+.ph{padding:18px 18px 12px;display:flex;align-items:flex-start;gap:12px}
+.ph h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+.ph .st{display:flex;align-items:center;gap:7px;color:var(--mute);margin-top:6px;font-size:13px}
+.close{margin-left:auto;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--chip);cursor:pointer;font-size:14px;flex:none}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 18px 14px}
+.stat{background:var(--chip);border-radius:12px;padding:10px 12px}
+.stat .v{font-size:20px;font-weight:600}
+.stat .l{font-size:12px;color:var(--mute)}
+.pb{overflow:auto;padding:0 18px 18px;flex:1}
+.pb h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:14px 0 6px}
+.item{padding:10px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:20px 1fr auto;gap:2px 8px}
+.item:first-of-type{border-top:0}
+.item .ic{display:flex;align-items:center;height:20px}
+.item .ti{font-weight:600}
+.item .tm{font-size:12px;color:var(--mute);line-height:20px}
+.item .sub{grid-column:2/4;color:var(--mute);font-size:12.5px}
+.item .badges{grid-column:2/4;display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.bdg{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--mute)}
+.bdg .ico{width:12px;height:12px}
+.bdg.cu{background:var(--cu-bg);color:var(--cu-fg)}
+.bdg.wait{background:var(--wt-bg);color:var(--wt-fg)}
+.bdg.ag{background:var(--ag-bg);color:var(--ag-fg)}
+.item.done .ti{color:var(--mute);font-weight:500}
+.empty{color:var(--mute);font-size:13px;padding:6px 0}
+
+#loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--mute);z-index:2;text-align:center;padding:16px}
+.credit{position:absolute;left:14px;bottom:10px;font-size:11px;color:var(--mute);z-index:2}
+.credit a{color:inherit}
+
+@media (max-width:720px){
+  .sum .chip:not(.keep){display:none}
+  #panel{top:auto;right:8px;left:8px;bottom:8px;width:auto;max-width:none;height:62%;transform:translateY(calc(100% + 30px))}
+  #panel.open{transform:none}
+  .tag{font-size:12px;padding:4px 8px 4px 7px}
+  .tag .t{display:none}
+}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="stage"></div>
+<div id="tags"></div>
+<div id="loading">Ładuję biuro…</div>
+<div class="sum" id="sum"></div>
+<aside id="panel" aria-live="polite"></aside>
+<div class="credit">modele: <a href="https://kenney.nl" target="_blank" rel="noopener">Kenney</a> (CC0)</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+
+// Strona osadzona w zakładce „Biuro” aplikacji (iframe z tej samej domeny): token logowania i motyw bierze z aplikacji.
+// adres API tylko z tej samej domeny (albo localhost przy pracy lokalnej), żeby link z obcym ?api= nie wyciągnął tokenu
+const API = (()=>{
+  try {
+    const u = new URL(new URLSearchParams(location.search).get('api') || location.origin, location.origin);
+    return u.origin===location.origin || ['localhost','127.0.0.1'].includes(u.hostname) && ['localhost','127.0.0.1'].includes(location.hostname) ? u.origin : '';
+  } catch { return ''; }
+})();
+const MIN = 60000;
+
+// ================= dane =================
+// osoby i sesje z /api/presence/state; ludzie siedzą przy biurkach, boty to szafy w pokoju narzędzi
+const PEOPLE = {};   // id → {name, kind, model, recolor}
+const STATE = { sessions:[], live:false, error:'' };
+
+const fromServer = (s)=>({ ...s, human: s.human_recent,
+  clickup_task: s.clickup_task ? (s.clickup_task.name || '#'+s.clickup_task.id) : null,
+  counter: s.counter?.value ?? s.counter ?? null, counter_label: s.counter?.label || 'dziś' });
+
+const fmt = (ms)=>{const m=Math.round(ms/MIN);return m<60?`${m} min`:`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')}`;};
+const short = (ms)=>{const m=Math.round(ms/MIN);return m<60?`${m}m`:`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;};
+const esc = (s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// znaczki: Claude (gwiazdka), ClickUp (szewron z łukiem), bot (zębatka)
+const ICON = {
+  claude: '<svg class="ico claude" viewBox="0 0 24 24" aria-label="Claude"><g stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></g></svg>',
+  clickup: '<svg class="ico clickup" viewBox="0 0 24 24" aria-label="ClickUp"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10.5 12 4.5l7 6"/><path d="M4.5 15.5c4.6 5.3 10.4 5.3 15 0"/></g></svg>',
+  bot: '<svg class="ico bot" viewBox="0 0 24 24" aria-label="bot"><rect x="5" y="8" width="14" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 4v4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="9.5" cy="13.5" r="1.4" fill="currentColor"/><circle cx="14.5" cy="13.5" r="1.4" fill="currentColor"/></svg>',
+};
+
+function personState(id){
+  const ss = STATE.sessions.filter(s=>s.owner===id);
+  const open = ss.filter(s=>!s.ended_at);
+  const claude = open.filter(s=>s.source==='claude');
+  const agents = claude.filter(s=>s.status!=='idle').length + claude.reduce((a,s)=>a+s.subagents.length,0);
+  const human = open.some(s=>s.human);
+  const waiting = open.some(s=>s.status==='waiting');
+  const working = open.some(s=>s.status==='working');
+  let st, label;
+  if (waiting) { st='waiting'; label='agent czeka na decyzję'; }
+  else if (human && working) { st='working'; label='pracuje'; }
+  else if (claude.some(s=>s.status==='working')) { st='agents'; label='pracują agenci'; }
+  else if (human) { st='idle'; label='przy biurku'; }
+  else { st='away'; label='poza biurem'; }
+  const total = ss.reduce((a,s)=>a+s.active_ms,0);
+  return { ss, open, claude, agents, human, waiting, typing: human && working, st, label, total };
+}
+
+// ================= scena =================
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const cam = new THREE.OrthographicCamera(-1,1,1,-1,0.1,100);
+const TARGET = new THREE.Vector3(0.05,0.25,0.05);
+cam.position.set(12,9.6,6.2).add(TARGET);
+cam.lookAt(TARGET);
+
+const hemi = new THREE.HemisphereLight(0xfff4ea, 0xc9b8d8, 1.5);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff0dd, 2.2);
+sun.position.set(4,7,3);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-4,right:4,top:4,bottom:-4,near:1,far:20});
+sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.02; sun.shadow.radius = 4;
+scene.add(sun);
+
+const mat = (c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:0,...o});
+function block(w,h,d,color,x,y,z){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), typeof color==='number'?mat(color):color);
+  m.position.set(x,y,z); m.castShadow = m.receiveShadow = true; scene.add(m); return m;
+}
+
+// pokój
+const X0=-2.2, X1=2.3, Z0=-1.7, Z1=1.75, WH=1.45;
+const floorMat = mat(0xf3e2cc), slabMat = mat(0xe2c6a6), wallMat = mat(0xfffaf3,{emissive:0x2b2420}), wallSide = mat(0xfaf1e6,{emissive:0x2b2420});
+block(X1-X0+.14, .14, Z1-Z0+.14, slabMat, (X0+X1)/2-.07, -.07, (Z0+Z1)/2-.07);
+block(X1-X0, .01, Z1-Z0, floorMat, (X0+X1)/2, .005, (Z0+Z1)/2);
+block(X1-X0+.12, WH, .12, wallMat, (X0+X1)/2-.06, WH/2, Z0-.06);
+block(.12, WH, Z1-Z0, wallSide, X0-.06, WH/2, (Z0+Z1)/2);
+const trimMat = mat(0xe8d6c2);
+block(X1-X0, .06, .02, trimMat, (X0+X1)/2, .03, Z0+.01);
+block(.02, .06, Z1-Z0, trimMat, X0+.01, .03, (Z0+Z1)/2);
+
+// okna na tylnej ścianie
+const skyMat = new THREE.MeshBasicMaterial({color:0xbfe3f7});
+const frameMat = mat(0xffffff);
+for (const x of [-1.05, 0.55]) {
+  block(1.0,.66,.02, frameMat, x,.86,Z0+.005);
+  const pane = new THREE.Mesh(new THREE.PlaneGeometry(.92,.58), skyMat);
+  pane.position.set(x,.86,Z0+.02); scene.add(pane);
+  block(.025,.58,.01, frameMat, x,.86,Z0+.025);
+  block(1.06,.035,.09, frameMat, x,.52,Z0+.045);
+}
+
+// logo important.is na lewej ścianie (w ciemnym motywie jasne litery, czerwone iM zostaje)
+const LOGO_SVG = await fetch('assets/important-logo.svg').then(r=>r.text());
+const wallLogo = (()=>{
+  const c = document.createElement('canvas'); c.width=1552; c.height=240;
+  const g = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  const logo = new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.1*60/388), new THREE.MeshBasicMaterial({map:tex,transparent:true}));
+  logo.position.set(X0+.01,.86,-.85); logo.rotation.y = Math.PI/2; scene.add(logo);
+  return (night)=>{
+    const img = new Image();
+    img.onload = ()=>{ g.clearRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height); tex.needsUpdate = true; };
+    img.src = 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(LOGO_SVG.replaceAll('#181818', night?'#f5f5f5':'#1a1a1a'));
+  };
+})();
+
+// ================= modele =================
+const loader = new GLTFLoader();
+const cache = {};
+const load = (p)=>cache[p] ??= loader.loadAsync(p);
+
+const BASE = { wood:0xebc79f, woodDark:0xcfa178, plant:0x5fbf8a };
+async function place(name,{x=0,z=0,y=0,ry=0,s=1,width=null,colors={}}={}){
+  const g = await load(`assets/furniture/${name}.glb`);
+  const obj = g.scene.clone(true);
+  const pal = {...BASE, ...colors};
+  obj.traverse(o=>{ if(o.isMesh){ o.castShadow=o.receiveShadow=true; o.material = o.material.clone(); const c = pal[o.material.name]; if (c!==undefined) o.material.color.set(c); } });
+  const box = new THREE.Box3().setFromObject(obj), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const k = width ? width/size.x : s;
+  obj.position.set(-c.x, -box.min.y, -c.z);
+  const inner = new THREE.Group(); inner.add(obj); inner.scale.setScalar(k);
+  const wrap = new THREE.Group(); wrap.add(inner);
+  wrap.position.set(x,y,z); wrap.rotation.y = ry;
+  wrap.userData.size = size.multiplyScalar(k);
+  scene.add(wrap);
+  return wrap;
+}
+
+// kopia wspólnej tekstury Kenney dla jednej postaci: jaśniejsza skóra (odcienie pomarańczu), inny kolor koszulki (zielenie)
+function recolored(gltf, {skin=0, shirt=null}){
+  let src; gltf.scene.traverse(o=>{ if(o.isMesh && o.material.map) src = o.material.map; });
+  const img = src.image, c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d'); g.drawImage(img,0,0);
+  const d = g.getImageData(0,0,c.width,c.height), px = d.data, col = new THREE.Color(), hsl = {};
+  for (let i=0;i<px.length;i+=4){
+    col.setRGB(px[i]/255,px[i+1]/255,px[i+2]/255).getHSL(hsl);
+    const deg = hsl.h*360;
+    if (hsl.s>.25 && deg>=8 && deg<=35 && hsl.l>.3) col.setHSL(hsl.h+.01, hsl.s*.8, hsl.l+(1-hsl.l)*skin);
+    else if (shirt!==null && hsl.s>.3 && deg>=120 && deg<=175) col.setHSL(shirt/360, hsl.s*.75, hsl.l*.95);
+    else continue;
+    px[i]=col.r*255; px[i+1]=col.g*255; px[i+2]=col.b*255;
+  }
+  g.putImageData(d,0,0);
+  const t = new THREE.CanvasTexture(c);
+  for (const k of ['flipY','colorSpace','magFilter','minFilter','wrapS','wrapT','generateMipmaps']) t[k] = src[k];
+  return t;
+}
+
+const people = {};   // id → {char, mixer, arms, glow, ring, head}
+const bots = {};     // id → {leds, head}
+const pickables = [];
+// miejsca przy biurkach w kolejności zajmowania; boty stają w pokoju narzędzi
+const DESKS = [[-1.0,-0.5],[0.3,-0.5],[-1.0,0.75],[0.3,0.75],[1.0,-0.45]];
+const RACKS = [[1.72,-1.42],[2.12,-1.42]];
+const ALLOWED_MODELS = /^character-(male|female)-[a-f]$/;
+
+async function buildDesk(id, slot){
+  const p = PEOPLE[id], [dx,dz] = DESKS[slot];
+  // biurko stoi bokiem: osoba patrzy w +x, widz widzi ją z trzech czwartych
+  const desk = await place('desk',{x:dx,z:dz,ry:-Math.PI/2,width:.78});
+  desk.scale.y = .78;   // niższy blat, żeby małe postacie sięgały klawiatury
+  const top = desk.userData.size.y*.78;
+  const laptop = await place('laptop',{x:dx-.06,z:dz,y:top,ry:-Math.PI/2,width:.23});
+  const chair = await place('chairDesk',{x:dx-.37,z:dz,ry:Math.PI/2,width:.34,colors:{carpet:0x434756}});
+  if (slot%2===0) await place('plantSmall2',{x:dx+.1,z:dz-.29,y:top,width:.1});
+  else await place('books',{x:dx+.1,z:dz-.27,y:top,width:.14,ry:-.4});
+
+  // poświata ekranu (widać ją na twarzy i biurku)
+  const glow = new THREE.PointLight(0xa9d8ff, 0, .55, 2);
+  glow.position.set(dx-.1, top+.12, dz); scene.add(glow);
+
+  // znacznik wybranej osoby
+  const ring = new THREE.Mesh(new THREE.CircleGeometry(.62,48), new THREE.MeshBasicMaterial({color:0xff3434,transparent:true,opacity:0,depthWrite:false}));
+  ring.rotation.x = -Math.PI/2; ring.position.set(dx-.2,.012,dz); scene.add(ring);
+
+  // postać
+  const model = ALLOWED_MODELS.test(p.model) ? p.model : 'character-male-f';
+  const gltf = await load(`assets/characters/${model}.glb`);
+  const char = SkeletonUtils.clone(gltf.scene);
+  const map = p.recolor && recolored(gltf, p.recolor);
+  char.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; if (map){ o.material = o.material.clone(); o.material.map = map; } } });
+  const b = new THREE.Box3().setFromObject(char), h = b.getSize(new THREE.Vector3()).y;
+  char.scale.setScalar(.74/h);
+  char.position.set(dx-.31, .13, dz);
+  char.rotation.y = Math.PI/2;
+  scene.add(char);
+  const mixer = new THREE.AnimationMixer(char);
+  // z animacji siedzenia bierzemy tylko nogi i biodra; ręce ustawia pętla (klawiatura)
+  const sit = gltf.animations.find(a=>a.name==='sit').clone();
+  sit.tracks = sit.tracks.filter(t=>!t.name.startsWith('arm-'));
+  mixer.clipAction(sit).play();
+  const arms = { l: char.getObjectByName('arm-left'), r: char.getObjectByName('arm-right'), head: char.getObjectByName('head') };
+  arms.l.rotation.order = arms.r.rotation.order = 'YZX';
+  char.traverse(o=>{ if(o.isMesh){ o.userData.person=id; pickables.push(o); } });
+  [desk,chair,laptop].forEach(g=>g.traverse(o=>{ if(o.isMesh){ o.userData.person=id; pickables.push(o); } }));
+
+  people[id] = { char, mixer, arms, glow, ring, head:new THREE.Vector3(), phase:Math.random()*6 };
+}
+
+// bot to szafa z diodami
+function buildRack(id, slot){
+  const [x,z] = RACKS[slot];
+  const leds = [], rack = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(.34,.86,.32), mat(0x3e4352,{roughness:.6}));
+  body.position.y=.43; rack.add(body);
+  for (let i=0;i<6;i++){
+    const u = new THREE.Mesh(new THREE.BoxGeometry(.28,.09,.01), mat(0x2c303b,{roughness:.5}));
+    u.position.set(0,.15+i*.12,.162); rack.add(u);
+    for (let k=0;k<3;k++){
+      const led = new THREE.Mesh(new THREE.BoxGeometry(.018,.018,.01), new THREE.MeshBasicMaterial({color:0x3ddc97}));
+      led.position.set(.07+k*.03,.15+i*.12,.17); rack.add(led); leds.push(led);
+    }
+  }
+  rack.position.set(x,0,z);
+  rack.traverse(o=>{ if(o.isMesh){ o.castShadow=o.receiveShadow=true; o.userData.person=id; pickables.push(o); } });
+  scene.add(rack);
+  bots[id] = { leds, head: new THREE.Vector3(x, 1.05, z) };
+}
+
+async function buildRoom(){
+  // strefa wspólna: sofa, regał, kawa, rośliny
+  await place('rugRectangle',{x:-.5,z:.1,width:2.4,colors:{carpet:0xefe1cf,carpetDarker:0xe2cdb5}});
+  await place('rugRound',{x:1.55,z:.75,width:1.05,colors:{carpet:0xe7def3,carpetDarker:0xd6c9ea}});
+  await place('loungeSofa',{x:2.0,z:.75,ry:-Math.PI/2,width:1.0,colors:{carpet:0x8db8a2}});
+  await place('tableCoffee',{x:1.4,z:.75,ry:Math.PI/2,width:.42});
+  await place('bookcaseOpen',{x:X0+.14,z:.62,ry:Math.PI/2,width:.62});
+  await place('pottedPlant',{x:X0+.22,z:Z0+.22,width:.3});
+  await place('pottedPlant',{x:X1-.2,z:Z1-.25,width:.26});
+  await place('lampRoundFloor',{x:X1-.2,z:.05,width:.22});
+  const kc = await place('kitchenCabinet',{x:X0+.2,z:1.25,ry:Math.PI/2,width:.42});
+  await place('kitchenCoffeeMachine',{x:X0+.2,z:1.25,y:kc.userData.size.y,ry:Math.PI/2,width:.16});
+
+  // pokój narzędzi za szklaną ścianką
+  const RX = 1.5, RZ = -.82;
+  block(X1-RX, .006, RZ-Z0, mat(0xd9dde6), (X1+RX)/2, .012, (Z0+RZ)/2);
+  const glass = new THREE.MeshStandardMaterial({color:0xcfe6f2, transparent:true, opacity:.28, roughness:.1, depthWrite:false});
+  const gframe = mat(0xf4f1ec);
+  const gw = (w,d,x,z)=>{ const m = block(w,.9,d,glass,x,.45,z); m.castShadow=false; block(w+.02,.035,d+.02,gframe,x,.9,z); block(w+.02,.035,d+.02,gframe,x,.018,z); };
+  gw(X1-RX-.3, .02, (X1+RX+.3)/2, RZ);       // przód, przejście przy x=RX
+  gw(.02, RZ-Z0, RX, (Z0+RZ)/2);              // bok
+  await place('plantSmall3',{x:X1-.14,z:RZ-.18,width:.14});
+
+  // lampa przy sofie świeci w ciemnym motywie
+  window.__floorLamp = new THREE.PointLight(0xffc97a, 0, 2.2, 1.5);
+  window.__floorLamp.position.set(X1-.2,.75,.05); scene.add(window.__floorLamp);
+}
+
+// nowe osoby z serwera dostają kolejne wolne biurko albo szafę
+let building = Promise.resolve();
+function syncPeople(list){
+  building = building.then(async ()=>{
+    for (const p of list){
+      if (PEOPLE[p.id]) continue;
+      PEOPLE[p.id] = p;
+      if (p.kind==='bot'){ const n = Object.keys(bots).length; if (n<RACKS.length) buildRack(p.id, n); }
+      else { const n = Object.keys(people).length; if (n<DESKS.length) await buildDesk(p.id, n); }
+    }
+  });
+  return building;
+}
+
+// ================= etykiety i panel =================
+const tagsEl = document.getElementById('tags');
+const tags = {};
+function makeTag(id){
+  const b = document.createElement('button'); b.className='tag';
+  b.onclick = (e)=>{ e.stopPropagation(); select(id); };
+  tagsEl.appendChild(b); tags[id]=b; return b;
+}
+
+function renderTags(){
+  for (const id in people){
+    const s = personState(id), t = tags[id] || makeTag(id);
+    t.className = 'tag' + (s.st==='away'?' away':'') + (SEL===id?' sel':'');
+    t.innerHTML = `<i class="dot ${s.st}"></i><b>${esc(PEOPLE[id].name)}</b>`
+      + (s.waiting ? `<span class="wt">czeka</span>` : s.total ? `<span class="t">${short(s.total)}</span>` : '')
+      + (s.agents ? `<span class="ag">${ICON.claude}${s.agents}</span>` : '');
+  }
+  for (const id in bots){
+    const b = STATE.sessions.find(x=>x.owner===id && !x.ended_at), t = tags[id] || makeTag(id);
+    t.className = 'tag' + (SEL===id?' sel':'') + (b?'':' away');
+    t.innerHTML = `<i class="dot ${b?'bot':''}"></i><b>${esc(PEOPLE[id].name)}</b>` + (b?.counter!=null ? `<span class="t">${esc(b.counter)} ${esc(b.counter_label)}</span>` : '');
+  }
+}
+
+function itemHTML(s){
+  const badges = [];
+  if (s.status==='waiting') badges.push('<span class="bdg wait">czeka na decyzję</span>');
+  if (s.subagents.length) badges.push(`<span class="bdg ag">${ICON.claude}${s.subagents.length} ${s.subagents.length===1?'agent':'agentów'}: ${esc(s.subagents.join(', '))}</span>`);
+  if (s.clickup_task && s.source!=='clickup') badges.push(`<span class="bdg cu">${ICON.clickup}${esc(s.clickup_task)}</span>`);
+  else if (s.source==='claude') badges.push('<span class="bdg">bez zadania w ClickUp</span>');
+  const sub = [s.project, s.ended_at ? 'skończone' : s.activity].filter(Boolean).map(esc).join(' · ');
+  return `<div class="item ${s.ended_at?'done':''}"><span class="ic">${ICON[s.source]||''}</span><span class="ti">${esc(s.title||s.project)}</span><span class="tm">${fmt(s.active_ms)}</span>${sub?`<span class="sub">${sub}</span>`:''}${s.summary?`<span class="sub">${esc(s.summary)}</span>`:''}${badges.length?`<div class="badges">${badges.join('')}</div>`:''}</div>`;
+}
+
+const panel = document.getElementById('panel');
+let SEL = null;
+function renderPanel(){
+  if (!SEL || !PEOPLE[SEL]) { panel.classList.remove('open'); return; }
+  panel.classList.add('open');
+  const offline = STATE.live ? '' : '<span class="note">brak połączenia</span>';
+  if (PEOPLE[SEL].kind==='bot'){
+    const ss = STATE.sessions.filter(x=>x.owner===SEL), b = ss.find(x=>!x.ended_at);
+    const total = ss.reduce((a,s)=>a+s.active_ms,0);
+    panel.innerHTML = `<div class="ph"><div><h2>${esc(PEOPLE[SEL].name)}</h2><div class="st"><i class="dot ${b?'bot':''}"></i>${b ? esc(b.activity||'działa') : 'nie działa'} ${offline}</div></div><button class="close" aria-label="Zamknij">✕</button></div>
+      <div class="stats"><div class="stat"><div class="v">${esc(b?.counter ?? 0)}</div><div class="l">${esc(b?.counter_label || 'dziś')}</div></div><div class="stat"><div class="v">${fmt(total)}</div><div class="l">działa dziś</div></div></div>
+      <div class="pb"><h3>Teraz</h3>${b ? itemHTML(b) : '<div class="empty">Nic nie robi.</div>'}</div>`;
+  } else {
+    const s = personState(SEL);
+    const now = s.open.sort((a,b)=>(a.status==='waiting'?-1:0)-(b.status==='waiting'?-1:0));
+    // sesje krótsze niż minuta (otwarte i zamknięte bez pracy) nie zaśmiecają historii ani listy do zalogowania
+    const done = s.ss.filter(x=>x.ended_at && (x.title || x.active_ms>=MIN));
+    const tolog = s.ss.filter(x=>x.ended_at && x.source==='claude' && !x.clickup_task && x.active_ms>=MIN);
+    panel.innerHTML = `<div class="ph"><div><h2>${esc(PEOPLE[SEL].name)}</h2><div class="st"><i class="dot ${s.st}"></i>${s.label} ${offline}</div></div><button class="close" aria-label="Zamknij">✕</button></div>
+      <div class="stats"><div class="stat"><div class="v">${fmt(s.total)}</div><div class="l">pracy dziś</div></div><div class="stat"><div class="v">${s.agents}</div><div class="l">${s.agents===1?'agent pracuje':'agentów pracuje'}</div></div></div>
+      <div class="pb">
+        <h3>Teraz</h3>${now.length ? now.map(itemHTML).join('') : '<div class="empty">Nic otwartego.</div>'}
+        ${done.length ? `<h3>Wcześniej dziś</h3>${done.map(itemHTML).join('')}` : ''}
+        ${tolog.length ? `<h3>Do zalogowania w ClickUp</h3>${tolog.map(x=>`<div class="item"><span class="ic">${ICON.claude}</span><span class="ti">${esc(x.title||x.project)}</span><span class="tm">${fmt(x.active_ms)}</span>${x.title?`<span class="sub">${esc(x.project)}</span>`:''}</div>`).join('')}` : ''}
+      </div>`;
+  }
+  panel.querySelector('.close').onclick = ()=>select(null);
+}
+
+function select(id){
+  SEL = (id && id===SEL) ? null : id;
+  history.replaceState(null,'',SEL?'#'+SEL:location.pathname+location.search);
+  render();
+}
+addEventListener('keydown',e=>{ if(e.key==='Escape') select(null); });
+
+function renderSummary(){
+  const all = Object.keys(people).map(personState);
+  const working = all.filter(s=>s.st==='working'||s.st==='waiting').length;
+  const agents = all.reduce((a,s)=>a+s.agents,0);
+  const waiting = all.filter(s=>s.waiting).length;
+  document.getElementById('sum').innerHTML =
+    `<span class="chip keep"><i class="dot working"></i>${working} przy pracy</span>`
+    + `<span class="chip">${ICON.claude}${agents} ${agents===1?'agent':'agentów'}</span>`
+    + (waiting ? `<span class="chip"><i class="dot waiting"></i>${waiting} czeka</span>` : '')
+    + (STATE.error ? `<span class="chip keep">${esc(STATE.error)}</span>` : '')
+    + `<span class="chip mono" id="clock"></span>`;
+  tick();
+}
+const tick = ()=>{ const c=document.getElementById('clock'); if(c) c.textContent = new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'}); };
+setInterval(tick, 10000);
+
+// ================= motyw aplikacji: ciemny = wieczór w biurze =================
+const appRoot = (()=>{ try { return parent.document.documentElement; } catch { return null; } })();
+const isDark = ()=> appRoot ? !appRoot.classList.contains('light') : (localStorage.getItem('ui-theme') || 'dark') === 'dark';
+let NIGHT = isDark();
+function applyNight(){
+  document.documentElement.classList.toggle('light', !NIGHT);
+  hemi.intensity = NIGHT ? .6 : 1.5;
+  hemi.color.set(NIGHT ? 0xa8a8bc : 0xfff4ea); hemi.groundColor.set(NIGHT ? 0x2a2a2e : 0xc9b8d8);
+  sun.intensity = NIGHT ? .4 : 2.2; sun.color.set(NIGHT ? 0x9fb0ff : 0xfff0dd);
+  skyMat.color.set(NIGHT ? 0x1b2236 : 0xbfe3f7);
+  floorMat.color.set(NIGHT ? 0x8f8578 : 0xf3e2cc);
+  wallMat.color.set(NIGHT ? 0x85817c : 0xfffaf3); wallSide.color.set(NIGHT ? 0x77736e : 0xfaf1e6);
+  wallMat.emissive.set(NIGHT ? 0x000000 : 0x2b2420); wallSide.emissive.copy(wallMat.emissive);
+  slabMat.color.set(NIGHT ? 0x4a4643 : 0xe2c6a6);
+  if (window.__floorLamp) window.__floorLamp.intensity = NIGHT ? 2.2 : 0;
+  wallLogo(NIGHT);
+}
+if (appRoot) new MutationObserver(()=>{ if (isDark()!==NIGHT){ NIGHT=isDark(); applyNight(); } }).observe(appRoot,{attributes:true,attributeFilter:['class']});
+
+// ================= stan → scena =================
+function applyState(){
+  for (const id in people){
+    const s = personState(id), P = people[id];
+    P.char.visible = s.st!=='away';
+    P.typing = s.typing;
+    P.glowOn = s.st!=='away' && s.st!=='idle';
+    P.ring.material.opacity = SEL===id ? .22 : 0;
+  }
+}
+
+function render(){ renderTags(); renderPanel(); renderSummary(); applyState(); resize(); }
+
+// ================= pętla =================
+const clock = new THREE.Clock();
+const UP = new THREE.Vector3(0,.42,0);
+const v = new THREE.Vector3();
+function frame(){
+  const dt = clock.getDelta(), t = clock.elapsedTime;
+  for (const id in people){
+    const P = people[id];
+    P.mixer.update(dt);
+    // ręka w spoczynku jest rozłożona w bok: obrót wokół pionu kieruje ją do przodu, z opuszcza;
+    // przy pisaniu dłonie na zmianę lekko stukają w klawiaturę
+    const fw = P.typing ? 1.25 : .7, down = P.typing ? .3 : .95;
+    const tapL = P.typing ? Math.max(0, Math.sin(t*13+P.phase))*.14 : 0;
+    const tapR = P.typing ? Math.max(0, Math.sin(t*13+P.phase+2.4))*.14 : 0;
+    P.arms.l.rotation.set(0, -fw, -down + tapL);
+    P.arms.r.rotation.set(0,  fw,  down - tapR);
+    if (P.arms.head) P.arms.head.rotation.x = (P.typing ? .12 : 0) + Math.sin(t*1.1+P.phase)*.025;
+    const target = P.glowOn ? (NIGHT ? .03 : .015) : 0;
+    P.glow.intensity += (target-P.glow.intensity)*.1;
+  }
+  // diody szafy mrugają, gdy bot pracuje
+  for (const id in bots){
+    const on = STATE.sessions.some(x=>x.owner===id && !x.ended_at && x.status==='working');
+    bots[id].leds.forEach((l,i)=>l.material.color.set(!on ? 0x59606f : (Math.sin(t*(2+i%5)+i*1.7)>.2 ? 0x3ddc97 : 0x1d6b4c)));
+  }
+  renderer.render(scene, cam);
+  // etykiety nad głowami
+  const W = stage.clientWidth, H = stage.clientHeight;
+  const pos = (id)=> bots[id] ? bots[id].head : people[id] && people[id].arms.head.getWorldPosition(people[id].head).add(UP);
+  for (const id in tags){
+    const p = pos(id); if (!p) continue;
+    v.copy(p).project(cam);
+    // etykieta nie wychodzi poza ekran ani pod otwarty panel
+    const half = tags[id].offsetWidth/2 + 8, right = SEL && W>720 ? W-380 : W;
+    tags[id].style.left = Math.min(Math.max((v.x+1)/2*W, half), right-half)+'px';
+    tags[id].style.top = ((1-v.y)/2*H)+'px';
+  }
+  requestAnimationFrame(frame);
+}
+
+function resize(){
+  const W = stage.clientWidth, H = stage.clientHeight, a = W/H;
+  const panelOpen = SEL && W>720;
+  const h = Math.max(2.15, 2.75/a);
+  cam.left=-h*a; cam.right=h*a; cam.top=h; cam.bottom=-h;
+  // otwarty panel: biuro przesuwa się w lewo, żeby nic nie chować
+  if (panelOpen) cam.setViewOffset(W, H, 190, 0, W, H); else cam.clearViewOffset();
+  cam.updateProjectionMatrix();
+  renderer.setSize(W,H,false);
+}
+addEventListener('resize', resize);
+
+// klik w postać lub biurko
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+function hit(e){
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set((e.clientX-r.left)/r.width*2-1, -(e.clientY-r.top)/r.height*2+1);
+  ray.setFromCamera(mouse, cam);
+  return ray.intersectObjects(pickables,false)[0]?.object.userData.person;
+}
+renderer.domElement.addEventListener('click', e=>{ const id = hit(e); select(id || null); });
+renderer.domElement.addEventListener('pointermove', e=>{ renderer.domElement.style.cursor = hit(e) ? 'pointer' : ''; });
+
+// ================= dane z aplikacji =================
+let READY = false;
+async function poll(){
+  try {
+    const r = await fetch(`${API}/api/presence/state`, { headers:{ Authorization:`Bearer ${localStorage.getItem('token')||''}` } });
+    if (r.status===401) throw new Error('zaloguj się ponownie');
+    if (!r.ok) throw new Error(`błąd serwera ${r.status}`);
+    const d = await r.json();
+    await syncPeople(d.people);
+    STATE.sessions = d.sessions.map(fromServer);
+    STATE.live = true; STATE.error = '';
+  } catch (e) {
+    STATE.live = false; STATE.error = e.message.includes('zaloguj') || e.message.startsWith('błąd') ? e.message : 'brak połączenia';
+  }
+  if (READY) render();
+}
+setInterval(poll, 5000);
+
+// ================= start =================
+applyNight();
+await buildRoom();
+await poll();
+applyNight();
+document.getElementById('loading').remove();
+if (PEOPLE[location.hash.slice(1)]) SEL = location.hash.slice(1);
+READY = true;
+resize(); render(); frame();
+window.__ready = true;
+</script>
+</body>
+</html>
