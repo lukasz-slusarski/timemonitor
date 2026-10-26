@@ -7,6 +7,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminPanel } from './components/AdminPanel';
 import { EarningsTab } from './components/EarningsTab';
 import { HomeTab } from './components/HomeTab';
+import { OfficeTab } from './components/OfficeTab';
 import { TimeEntriesImport } from './components/TimeEntriesImport';
 import { DateRangePicker, DateRange, buildDateQueryParams } from './components/DateRangePicker';
 import { Badge } from './components/ui/badge';
@@ -739,7 +740,7 @@ function Dashboard({ theme, onToggleTheme }: DashboardProps) {
   const [history, setHistory] = useState<TimeEntry[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'live' | 'stats' | 'earnings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'office' | 'live' | 'stats' | 'earnings'>('home');
   const [historyRange, setHistoryRange] = useState<HistoryRange>('last_30_days');
   const [historyLimit, setHistoryLimit] = useState<number>(50);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -961,6 +962,12 @@ function Dashboard({ theme, onToggleTheme }: DashboardProps) {
               Home
             </button>
             <button
+              onClick={() => setActiveTab('office')}
+                className={getTabButtonClasses(activeTab === 'office')}
+            >
+              Biuro
+            </button>
+            <button
               onClick={() => setActiveTab('live')}
                 className={getTabButtonClasses(activeTab === 'live')}
             >
@@ -1008,6 +1015,8 @@ function Dashboard({ theme, onToggleTheme }: DashboardProps) {
       <main className="max-w-6xl mx-auto px-4 py-8">
         {activeTab === 'home' ? (
           <HomeTab />
+        ) : activeTab === 'office' ? (
+          <OfficeTab />
         ) : activeTab === 'live' ? (
           <LiveTab
             activeSessions={activeSessions}

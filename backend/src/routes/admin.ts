@@ -13,6 +13,7 @@ import {
   deleteSetting,
 } from '../database.js';
 import { getConfig } from '../config.js';
+import { createToken, listTokens, revokeToken } from '../presence.js';
 import { hashPassword } from '../auth/password.js';
 import { requireAuth, requireRole } from '../auth/middleware.js';
 import { AuthenticatedRequest, CreateUserRequest, UpdateUserRequest } from '../types/auth.js';
@@ -456,4 +457,43 @@ adminRouter.patch('/projects/:id/internal', (req: AuthenticatedRequest, res: Res
   }
 
   res.json({ id, is_internal, message: is_internal ? 'Oznaczono jako wewnętrzny' : 'Oznaczono jako kliencki' });
+});
+
+// GET /admin/presence-tokens - tokeny biura (plugin Claude Code, boty); same tokeny nie są przechowywane
+adminRouter.get('/presence-tokens', (_req: AuthenticatedRequest, res: Response) => {
+  res.json(listTokens());
+});
+
+// POST /admin/presence-tokens - nowy token; pełna wartość wraca tylko w tej odpowiedzi
+adminRouter.post('/presence-tokens', (req: AuthenticatedRequest, res: Response) => {
+  const { kind, app_user_id, name, model, recolor } = req.body as {
+    kind?: 'human' | 'bot'; app_user_id?: number; name?: string; model?: string; recolor?: string;
+  };
+  const tokenKind = kind === 'bot' ? 'bot' : 'human';
+  let tokenName = (name || '').trim();
+
+  if (tokenKind === 'human') {
+    const appUser = app_user_id ? getAppUserById(Number(app_user_id)) : undefined;
+    if (!appUser) {
+      return res.status(400).json({ error: 'Wybierz użytkownika' });
+    }
+    tokenName = tokenName || appUser.display_name || appUser.username;
+  } else if (!tokenName) {
+    return res.status(400).json({ error: 'Podaj nazwę bota' });
+  }
+
+  if (recolor) {
+    try { JSON.parse(recolor); } catch { return res.status(400).json({ error: 'Kolory muszą być w JSON' }); }
+  }
+
+  const created = createToken({ name: tokenName.slice(0, 60), kind: tokenKind, app_user_id: Number(app_user_id) || null, model, recolor: recolor || null });
+  res.status(201).json(created);
+});
+
+// DELETE /admin/presence-tokens/:id - unieważnienie tokenu (sesje tej osoby znikają z biura)
+adminRouter.delete('/presence-tokens/:id', (req: AuthenticatedRequest, res: Response) => {
+  if (!revokeToken(Number(req.params.id))) {
+    return res.status(404).json({ error: 'Token nie znaleziony' });
+  }
+  res.json({ ok: true });
 });

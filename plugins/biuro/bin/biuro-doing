@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""Ustawia tytuł i opis bieżącej sesji w Biurze (monitor.important.is).
+
+biuro-doing --session <id> 'Tytuł' 'Opis' [--task <id albo link ClickUp>] [--done]
+
+Nie wysyła nic sam: zapisuje tytuł lokalnie, a hook pluginu wysyła go razem z najbliższym
+zdarzeniem (zaraz po tej komendzie). Dzięki temu token nie trafia do środowiska komend.
+"""
+import argparse, json, os, sys
+
+CACHE = os.path.join(os.path.expanduser('~'), '.cache', 'biuro')
+
+ap = argparse.ArgumentParser()
+ap.add_argument('--session', default=os.environ.get('CLAUDE_CODE_SESSION_ID', ''))
+ap.add_argument('--task', default=None, help='id albo link zadania ClickUp')
+ap.add_argument('--done', action='store_true', help='oznacz pracę jako skończoną')
+ap.add_argument('title')
+ap.add_argument('summary', nargs='?', default='')
+a = ap.parse_args()
+if not a.session:
+    sys.exit('biuro: brak --session')
+
+p = {'title': a.title[:80], 'summary': a.summary[:200]}
+if a.task:
+    p['clickup_task'] = {'id': a.task.rstrip('/').split('/')[-1]}
+if a.done:
+    p['event'] = 'end'
+
+os.makedirs(CACHE, exist_ok=True)
+json.dump(p, open(os.path.join(CACHE, f'{a.session}.pending.json'), 'w'))
+open(os.path.join(CACHE, f'{a.session}.title'), 'w').write(a.title)
+print('biuro: zapisane')

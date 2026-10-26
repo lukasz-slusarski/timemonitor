@@ -11,6 +11,8 @@ import { adminRouter } from './routes/admin.js';
 import { notionRouter } from './routes/notion.js';
 import { earningsRouter } from './routes/earnings.js';
 import { homeRouter } from './routes/home.js';
+import { presenceRouter } from './routes/presence.js';
+import { initPresence } from './presence.js';
 import { startPolling } from './polling.js';
 import { verifyToken } from './auth/jwt.js';
 import { sendActiveSessionsToSocket } from './socket.js';
@@ -69,6 +71,8 @@ app.use('/webhook', webhookRouter);
 app.use('/auth', authRouter);
 
 // Routes - wymagające autoryzacji
+// biuro przed /api: zdarzenia z pluginu mają własny token, a apiRouter wymaga JWT dla całego /api
+app.use('/api/presence', presenceRouter);
 app.use('/api', apiRouter);
 app.use('/admin', adminRouter);
 app.use('/api/notion', notionRouter);
@@ -117,6 +121,7 @@ const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   await initDatabase();
+  initPresence();
 
   httpServer.listen(PORT, () => {
     console.log(`

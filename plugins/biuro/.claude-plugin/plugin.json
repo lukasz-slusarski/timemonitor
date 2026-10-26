@@ -1,0 +1,27 @@
+{
+  "name": "biuro",
+  "version": "0.1.0",
+  "description": "Wysyła status sesji Claude Code do zakładki Biuro w monitor.important.is. Bez treści promptów i wyników narzędzi.",
+  "author": { "name": "important.is" },
+  "userConfig": {
+    "token": {
+      "type": "string",
+      "title": "Token biura",
+      "description": "Token z panelu admina monitor.important.is (Admin, Tokeny biura)",
+      "sensitive": true,
+      "required": true
+    },
+    "url": {
+      "type": "string",
+      "title": "Adres monitora",
+      "description": "Adres aplikacji monitor",
+      "default": "https://monitor.important.is"
+    },
+    "roots": {
+      "type": "string",
+      "title": "Foldery pracy",
+      "description": "Foldery, z których sesje trafiają do biura, po przecinku. Inne foldery zostają prywatne.",
+      "default": "~/important,~/Projects/important"
+    }
+  }
+}
