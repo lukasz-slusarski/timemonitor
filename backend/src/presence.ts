@@ -196,7 +196,7 @@ export function presenceState() {
     if (people.has(id)) continue;
     let recolor = null;
     try { recolor = t.recolor ? JSON.parse(t.recolor) : null; } catch { /* zły JSON = bez zmian koloru */ }
-    people.set(id, { id, name: t.display_name || t.name, kind: t.kind, model: t.model, recolor });
+    people.set(id, { id, name: t.name || t.display_name || "", kind: t.kind, model: t.model, recolor });
   }
 
   // timery ClickUp: aktywne teraz i zakończone dziś, przypisane do kont aplikacji

@@ -469,12 +469,13 @@ function renderSummary(){
 const tick = ()=>{ const c=document.getElementById('clock'); if(c) c.textContent = new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'}); };
 setInterval(tick, 10000);
 
-// ================= motyw aplikacji: ciemny = wieczór w biurze =================
+// ================= motyw panelu jak w aplikacji, pora dnia w biurze z zegara =================
 const appRoot = (()=>{ try { return parent.document.documentElement; } catch { return null; } })();
 const isDark = ()=> appRoot ? !appRoot.classList.contains('light') : (localStorage.getItem('ui-theme') || 'dark') === 'dark';
-let NIGHT = isDark();
+const applyTheme = ()=> document.documentElement.classList.toggle('light', !isDark());
+const isNight = ()=>{ const h = new Date().getHours(); return h < 7 || h >= 19; };
+let NIGHT = isNight();
 function applyNight(){
-  document.documentElement.classList.toggle('light', !NIGHT);
   hemi.intensity = NIGHT ? .6 : 1.5;
   hemi.color.set(NIGHT ? 0xa8a8bc : 0xfff4ea); hemi.groundColor.set(NIGHT ? 0x2a2a2e : 0xc9b8d8);
   sun.intensity = NIGHT ? .4 : 2.2; sun.color.set(NIGHT ? 0x9fb0ff : 0xfff0dd);
@@ -486,7 +487,9 @@ function applyNight(){
   if (window.__floorLamp) window.__floorLamp.intensity = NIGHT ? 2.2 : 0;
   wallLogo(NIGHT);
 }
-if (appRoot) new MutationObserver(()=>{ if (isDark()!==NIGHT){ NIGHT=isDark(); applyNight(); } }).observe(appRoot,{attributes:true,attributeFilter:['class']});
+applyTheme();
+if (appRoot) new MutationObserver(applyTheme).observe(appRoot,{attributes:true,attributeFilter:['class']});
+setInterval(()=>{ if (isNight()!==NIGHT){ NIGHT=isNight(); applyNight(); } }, 60000);
 
 // ================= stan → scena =================
 function applyState(){
