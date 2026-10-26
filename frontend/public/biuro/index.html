@@ -113,10 +113,13 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 // Strona osadzona w zakładce „Biuro” aplikacji (iframe z tej samej domeny): token logowania i motyw bierze z aplikacji.
-// adres API przyjmujemy tylko od aplikacji z tej samej domeny (iframe); otwarta osobno strona pyta własną domenę,
-// żeby link z obcym ?api= nie wyciągnął tokenu
-const sameOriginParent = (()=>{ try { return parent !== window && !!parent.document; } catch { return false; } })();
-const API = sameOriginParent ? (new URLSearchParams(location.search).get('api') || '') : '';
+// adres API tylko z tej samej domeny (albo localhost przy pracy lokalnej), żeby link z obcym ?api= nie wyciągnął tokenu
+const API = (()=>{
+  try {
+    const u = new URL(new URLSearchParams(location.search).get('api') || location.origin, location.origin);
+    return u.origin===location.origin || ['localhost','127.0.0.1'].includes(u.hostname) && ['localhost','127.0.0.1'].includes(location.hostname) ? u.origin : '';
+  } catch { return ''; }
+})();
 const MIN = 60000;
 
 // ================= dane =================
