@@ -13,7 +13,7 @@ import {
   deleteSetting,
 } from '../database.js';
 import { getConfig } from '../config.js';
-import { createToken, listTokens, revokeToken } from '../presence.js';
+import { createToken, listTokens, revokeToken, updateTokenLook } from '../presence.js';
 import { hashPassword } from '../auth/password.js';
 import { requireAuth, requireRole } from '../auth/middleware.js';
 import { AuthenticatedRequest, CreateUserRequest, UpdateUserRequest } from '../types/auth.js';
@@ -488,6 +488,15 @@ adminRouter.post('/presence-tokens', (req: AuthenticatedRequest, res: Response) 
 
   const created = createToken({ name: tokenName.slice(0, 60), kind: tokenKind, app_user_id: Number(app_user_id) || null, model, recolor: recolor || null });
   res.status(201).json(created);
+});
+
+// PATCH /admin/presence-tokens/:id - zmiana postaci w biurze (model z Kenney Mini Characters)
+adminRouter.patch('/presence-tokens/:id', (req: AuthenticatedRequest, res: Response) => {
+  const { model } = req.body as { model?: string };
+  if (!model || !updateTokenLook(Number(req.params.id), model)) {
+    return res.status(400).json({ error: 'Nieznany model albo token' });
+  }
+  res.json({ ok: true });
 });
 
 // DELETE /admin/presence-tokens/:id - unieważnienie tokenu (sesje tej osoby znikają z biura)

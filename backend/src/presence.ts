@@ -91,6 +91,11 @@ export function listTokens(): PresenceToken[] {
   `).all() as PresenceToken[];
 }
 
+export function updateTokenLook(id: number, model: string) {
+  if (!MODELS.includes(model)) return false;
+  return db.prepare(`UPDATE presence_tokens SET model = ? WHERE id = ? AND revoked_at IS NULL`).run(model, id).changes > 0;
+}
+
 export function revokeToken(id: number) {
   return db.prepare(`UPDATE presence_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id = ? AND revoked_at IS NULL`).run(id).changes > 0;
 }
