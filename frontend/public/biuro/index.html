@@ -999,8 +999,8 @@ setInterval(()=>{ if (isNight()!==NIGHT){ NIGHT=isNight(); applyNight(); } }, 60
 function applyState(){
   for (const id in people){
     const s = personState(id), P = people[id];
-    // przerwa: człowiek jest, ale nic nie pisze (albo pracują za niego agenci) → idzie po kawę
-    P.want = s.st==='away' ? 'hidden' : (s.st==='idle' || s.st==='agents') ? 'break' : 'desk';
+    // przy biurku, póki pisał w ostatnich 10 min (też gdy czyta odpowiedź); przerwa, gdy pracują za niego tylko agenci
+    P.want = s.st==='away' ? 'hidden' : s.st==='agents' ? 'break' : 'desk';
     P.typing = s.typing;
     P.glowOn = s.st!=='away' && s.st!=='idle';
     P.ring.material.opacity = SEL===id ? .22 : 0;
